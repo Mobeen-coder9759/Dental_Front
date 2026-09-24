@@ -59,8 +59,6 @@ st.markdown(
             line-height: 1.6;
             margin-bottom: 32px;
         ">
-            Connected to your Heroku PostgreSQL database.<br>
-            Select a section from the sidebar to get started.
         </p>
         <div style="
             display: flex;
@@ -113,7 +111,6 @@ st.markdown(
             font-size: 11px;
             color: #3A3D4A;
         ">
-            Auto-refreshes every 30 s  ·  Data via Heroku PostgreSQL  ·  Vapi + n8n integration
         </p>
     </div>
     """,
