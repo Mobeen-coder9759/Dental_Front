@@ -1,3 +1,5 @@
+import html as html_lib
+
 import pandas as pd
 import streamlit as st
 
@@ -21,6 +23,31 @@ HIRING_BADGE_STYLES = {
     "rejected":    ("background:#3A1515;color:#E05252;", "REJECTED"),
     "hired":       ("background:#1A3A2A;color:#00E5A0;", "HIRED"),
 }
+
+TABLE_ROW_STYLE = """<tr style="transition:background 0.1s;" onmouseover="this.style.background='#20233A'" onmouseout="this.style.background=''">"""
+TABLE_TH_STYLE = """<th style="
+    text-align:left;
+    padding:8px 12px;
+    border-bottom:1px solid #2A2D3A;
+    font-size:11px;
+    font-weight:600;
+    color:#6B7080;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    white-space:nowrap;
+">"""
+TABLE_TD_STYLE = """<td style="
+    padding:8px 12px;
+    border-bottom:1px solid #1E2130;
+    white-space:nowrap;
+">"""
+TABLE_STYLE = """<table style="
+    width:100%;
+    border-collapse:collapse;
+    font-size:12.5px;
+    color:#C8CDD8;
+    background:#1A1D27;
+" """
 
 
 def inject_global_css():
@@ -254,14 +281,25 @@ def fmt_null(val) -> str:
 
 def booking_badge(val: str) -> str:
     key = str(val).lower().strip()
-    style, label = BADGE_STYLES.get(key, ("background:#252836;color:#9AA0B5;", str(val).upper()))
+    style, label = BADGE_STYLES.get(key, ("background:#252836;color:#9AA0B5;", html_lib.escape(str(val).upper())))
     return f'<span class="badge" style="{style}">{label}</span>'
 
 
 def hiring_badge(val: str) -> str:
     key = str(val).lower().strip()
-    style, label = HIRING_BADGE_STYLES.get(key, ("background:#252836;color:#9AA0B5;", str(val).upper()))
+    style, label = HIRING_BADGE_STYLES.get(key, ("background:#252836;color:#9AA0B5;", html_lib.escape(str(val).upper())))
     return f'<span class="badge" style="{style}">{label}</span>'
+
+
+def code_pill(val) -> str:
+    """Render a value as a monospace pill, HTML-escaped, or an em-dash if empty."""
+    if val in (None, "", "—") or (isinstance(val, float) and pd.isnull(val)):
+        return "—"
+    safe = html_lib.escape(str(val))
+    return (
+        f"<code style='background:#13151F;border:1px solid #2A2D3A;padding:1px 6px;"
+        f"border-radius:3px;font-size:11px;color:#7B8CDE;'>{safe}</code>"
+    )
 
 
 def table_header(title: str, count: int):
@@ -297,8 +335,38 @@ def empty_state(msg: str = "No records match the current filters."):
     )
 
 
+def render_html_table(display: pd.DataFrame, html_cols: list[str] | None = None):
+    """
+    Render a DataFrame as a styled HTML table.
+
+    Only columns listed in `html_cols` (already-built HTML, e.g. badges/pills
+    from this module) are left unescaped. Every other cell — which may
+    contain untrusted data pulled from the database — is HTML-escaped first,
+    preventing stored-XSS via names/emails/reasons etc.
+    """
+    html_cols = set(html_cols or [])
+    safe = display.copy()
+
+    for col in safe.columns:
+        if col not in html_cols:
+            safe[col] = safe[col].apply(
+                lambda v: html_lib.escape(str(v)) if not pd.isnull(v) else "—"
+            )
+
+    safe.columns = [c.replace("_", " ").title() for c in safe.columns]
+
+    table_html = (
+        safe.to_html(escape=False, index=False, border=0)
+        .replace("<table", TABLE_STYLE)
+        .replace("<th>", TABLE_TH_STYLE)
+        .replace("<td>", TABLE_TD_STYLE)
+        .replace("<tr>", TABLE_ROW_STYLE)
+    )
+    st.markdown(table_html, unsafe_allow_html=True)
+
+
 def render_df(df: pd.DataFrame):
-    """Render a DataFrame with dark-themed styling."""
+    """Render a DataFrame with dark-themed styling (safe, no raw HTML)."""
     st.dataframe(
         df,
         use_container_width=True,

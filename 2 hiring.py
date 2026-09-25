@@ -1,10 +1,12 @@
 import pandas as pd
 import streamlit as st
+from streamlit_autorefresh import st_autorefresh
 
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from database import fetch_hiring, update_applicant_status
+from particle_background import inject_particle_background
 from ui import (
     inject_global_css,
     page_header,
@@ -14,6 +16,7 @@ from ui import (
     hiring_badge,
     table_header,
     empty_state,
+    render_html_table,
 )
 
 st.set_page_config(
@@ -22,6 +25,8 @@ st.set_page_config(
     layout="wide",
 )
 inject_global_css()
+inject_particle_background()
+st_autorefresh(interval=30_000, key="hiring_refresher")
 
 # ── Sidebar filters ────────────────────────────────────────────────────────
 with st.sidebar:
@@ -81,48 +86,7 @@ else:
     if "application_status" in display.columns:
         display["application_status"] = display["application_status"].apply(hiring_badge)
 
-    display.columns = [c.replace("_", " ").title() for c in display.columns]
-
-    st.markdown(
-        display.to_html(
-            escape=False,
-            index=False,
-            border=0,
-        ).replace(
-            "<table",
-            """<table style="
-                width:100%;
-                border-collapse:collapse;
-                font-size:12.5px;
-                color:#C8CDD8;
-                background:#1A1D27;
-            " """,
-        ).replace(
-            "<th>",
-            """<th style="
-                text-align:left;
-                padding:8px 12px;
-                border-bottom:1px solid #2A2D3A;
-                font-size:11px;
-                font-weight:600;
-                color:#6B7080;
-                letter-spacing:0.04em;
-                text-transform:uppercase;
-                white-space:nowrap;
-            ">""",
-        ).replace(
-            "<td>",
-            """<td style="
-                padding:8px 12px;
-                border-bottom:1px solid #1E2130;
-                white-space:nowrap;
-            ">""",
-        ).replace(
-            "<tr>",
-            """<tr onmouseover="this.style.background='#20233A'" onmouseout="this.style.background=''">""",
-        ),
-        unsafe_allow_html=True,
-    )
+    render_html_table(display, html_cols=["application_status"])
 
     # ── Inline status updater ──────────────────────────────────────────────
     st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
@@ -147,8 +111,3 @@ else:
                 st.success(f"Status updated → {new_status}")
                 st.cache_data.clear()
                 st.rerun()
-
-# ── Auto-rerun every 30s ───────────────────────────────────────────────────
-import time
-time.sleep(30)
-st.rerun()

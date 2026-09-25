@@ -1,8 +1,7 @@
-import os
 import streamlit as st
 from ui import inject_global_css
+from particle_background import inject_particle_background
 from streamlit_autorefresh import st_autorefresh
-from database import fetch_data
 
 st.set_page_config(
     page_title="Dental CRM",
@@ -12,11 +11,11 @@ st.set_page_config(
 )
 
 inject_global_css()
+inject_particle_background()
 
-count = st_autorefresh(interval=10000, key="db_refresher")
+# Non-blocking auto-refresh (every 30s, matches the cache TTL on database.py)
+st_autorefresh(interval=30_000, key="landing_refresher")
 
-df = fetch_data("SELECT * FROM appointments ORDER BY created_at DESC;")
-st.dataframe(df)
 # ── Sidebar branding ───────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown(

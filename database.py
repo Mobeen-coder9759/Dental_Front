@@ -5,14 +5,20 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 
 
+@st.cache_resource
 def get_engine():
+    """Create (and cache) a single SQLAlchemy engine/pool for the app's lifetime."""
     url = os.environ.get("DATABASE_URL", "")
     if not url:
         raise ValueError("DATABASE_URL environment variable is not set.")
+
     if url.startswith("postgres://"):
         url = url.replace("postgres://", "postgresql://", 1)
+
     if "sslmode" not in url:
-        url += "?sslmode=require"
+        separator = "&" if "?" in url else "?"
+        url += f"{separator}sslmode=require"
+
     return create_engine(url, pool_pre_ping=True)
 
 

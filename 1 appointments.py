@@ -1,11 +1,13 @@
 import datetime
 import pandas as pd
 import streamlit as st
+from streamlit_autorefresh import st_autorefresh
 
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from database import fetch_appointments
+from particle_background import inject_particle_background
 from ui import (
     inject_global_css,
     page_header,
@@ -15,7 +17,7 @@ from ui import (
     booking_badge,
     table_header,
     empty_state,
-    render_df,
+    render_html_table,
 )
 
 st.set_page_config(
@@ -24,6 +26,8 @@ st.set_page_config(
     layout="wide",
 )
 inject_global_css()
+inject_particle_background()
+st_autorefresh(interval=30_000, key="appointments_refresher")
 
 # ── Sidebar filters ────────────────────────────────────────────────────────
 with st.sidebar:
@@ -57,14 +61,19 @@ page_header(
 
 # ── KPI strip ──────────────────────────────────────────────────────────────
 if not df_raw.empty:
-    total_today = int(
-        df_raw[pd.to_datetime(df_raw["timestamp"]).dt.date == today].shape[0]
-    )
-    total_upcoming = int(
-        df_raw[
-            pd.to_datetime(df_raw.get("booking_time", df_raw["timestamp"])).dt.date >= today
-        ].shape[0]
-    )
+    ts = pd.to_datetime(df_raw["timestamp"])
+    total_today = int((ts.dt.date == today).sum())
+
+    # "Upcoming" = appointments actually scheduled for today or later.
+    # booking_time holds the rescheduled slot; otherwise fall back to the
+    # original call timestamp only when no reschedule has happened.
+    effective_time = df_raw.get("booking_time")
+    if effective_time is not None:
+        effective_time = pd.to_datetime(effective_time.fillna(df_raw["timestamp"]))
+    else:
+        effective_time = ts
+    total_upcoming = int((effective_time.dt.date >= today).sum())
+
     total_rescheduled = int(
         df_raw["booking_type"].str.lower().eq("rescheduled").sum()
     ) if "booking_type" in df_raw.columns else 0
@@ -87,7 +96,6 @@ table_header("Appointment Records", len(df_raw))
 if df_raw.empty:
     empty_state()
 else:
-    # Format columns
     display = df_raw.copy()
 
     ts_cols = ["timestamp", "old_time", "booking_time", "cancel_time"]
@@ -104,53 +112,6 @@ else:
     if "calendar_event_id" in display.columns:
         display["calendar_event_id"] = display["calendar_event_id"].apply(fmt_null)
 
-    # Rename for display
-    display.columns = [c.replace("_", " ").title() for c in display.columns]
-
-    # HTML table for badge rendering
-    st.markdown(
-        display.to_html(
-            escape=False,
-            index=False,
-            classes="",
-            border=0,
-        ).replace(
-            "<table",
-            """<table style="
-                width:100%;
-                border-collapse:collapse;
-                font-size:12.5px;
-                color:#C8CDD8;
-                background:#1A1D27;
-            " """,
-        ).replace(
-            "<th>",
-            """<th style="
-                text-align:left;
-                padding:8px 12px;
-                border-bottom:1px solid #2A2D3A;
-                font-size:11px;
-                font-weight:600;
-                color:#6B7080;
-                letter-spacing:0.04em;
-                text-transform:uppercase;
-                white-space:nowrap;
-            ">""",
-        ).replace(
-            "<td>",
-            """<td style="
-                padding:8px 12px;
-                border-bottom:1px solid #1E2130;
-                white-space:nowrap;
-            ">""",
-        ).replace(
-            "<tr>",
-            """<tr style="transition:background 0.1s;" onmouseover="this.style.background='#20233A'" onmouseout="this.style.background=''">""",
-        ),
-        unsafe_allow_html=True,
-    )
-
-# ── Auto-rerun every 30s ───────────────────────────────────────────────────
-import time
-time.sleep(30)
-st.rerun()
+    # Only booking_type is pre-built HTML (a badge) — everything else gets
+    # HTML-escaped by render_html_table to prevent stored XSS from webhook data.
+    render_html_table(display, html_cols=["booking_type"])

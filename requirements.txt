@@ -45,4 +45,4 @@ urllib3==2.7.0
 uvicorn==0.52.4
 watchdog==6.0.0
 websockets==16.1.1
-streamlit-autorefresh
+streamlit-autorefresh==1.0.1
