@@ -2,7 +2,12 @@ import streamlit.components.v1 as components
 
 
 def inject_particle_background():
-    """Inject an Antigravity-style interactive particle field behind a Streamlit UI."""
+    """Inject an Antigravity-style interactive particle field behind a Streamlit UI.
+
+    Matches the reference (white page background, an elliptical ring of colorful
+    dashes that thins out toward the center, faint gray dust across the whole
+    viewport, and particles that get pushed away from the cursor).
+    """
 
     components.html(
         r"""
@@ -29,7 +34,7 @@ def inject_particle_background():
             style.id = "antigravity-particle-style";
             style.textContent = `
                 html, body {
-                    background: #000000 !important;
+                    background: #ffffff !important;
                 }
 
                 [data-testid="stAppViewContainer"],
@@ -79,11 +84,11 @@ def inject_particle_background():
                 centerYRatio: 0.50,
 
                 // Particle appearance.
-                minLength: 1.1,
-                maxLength: 3.0,
-                minAlpha: 0.16,
-                maxAlpha: 0.62,
-                lineWidth: 1.05,
+                minLength: 1.6,
+                maxLength: 3.8,
+                minAlpha: 0.45,
+                maxAlpha: 0.95,
+                lineWidth: 1.6,
 
                 // Ambient flow.
                 driftX: 13,
@@ -109,7 +114,16 @@ def inject_particle_background():
                     "#D84C78",
                     "#E26A59",
                     "#E7A23A"
-                ]
+                ],
+
+                // Faint static dust scattered across the whole viewport, giving
+                // the background texture seen behind/around the main ring.
+                dustDensity: 0.00014, // dots per px^2
+                dustMinAlpha: 0.10,
+                dustMaxAlpha: 0.28,
+                dustMinR: 0.6,
+                dustMaxR: 1.3,
+                dustColor: "#9AA3B2"
             };
 
             let width = 0;
@@ -120,6 +134,7 @@ def inject_particle_background():
             let radiusX = 0;
             let radiusY = 0;
             let particles = [];
+            let dust = [];
             let rafId = null;
             let destroyed = false;
 
@@ -290,6 +305,28 @@ def inject_particle_background():
                 particles = Array.from({ length: count }, (_, index) => new Particle(index, count));
             }
 
+            function createDust() {
+                const count = Math.round(width * height * CONFIG.dustDensity);
+                dust = Array.from({ length: count }, () => ({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    r: rand(CONFIG.dustMinR, CONFIG.dustMaxR),
+                    alpha: rand(CONFIG.dustMinAlpha, CONFIG.dustMaxAlpha)
+                }));
+            }
+
+            function drawDust() {
+                ctx.save();
+                ctx.fillStyle = CONFIG.dustColor;
+                for (const d of dust) {
+                    ctx.globalAlpha = d.alpha;
+                    ctx.beginPath();
+                    ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+
             function onMouseMove(event) {
                 mouse.x = event.clientX;
                 mouse.y = event.clientY;
@@ -314,11 +351,14 @@ def inject_particle_background():
             function onResize() {
                 resizeCanvas();
                 createParticles();
+                createDust();
             }
 
             function animate(time) {
                 if (destroyed) return;
                 ctx.clearRect(0, 0, width, height);
+
+                drawDust();
 
                 for (const particle of particles) {
                     particle.update(time);
@@ -336,6 +376,7 @@ def inject_particle_background():
 
             resizeCanvas();
             createParticles();
+            createDust();
             rafId = parentWin.requestAnimationFrame(animate);
 
             parentWin.__antigravityParticleField = {
