@@ -28,11 +28,15 @@ def inject_global_css():
         """
         <style>
         /* ── Reset & base ── */
-        html, body, [data-testid="stAppViewContainer"] {
+        html, body {
             background-color: #0F1117;
             color: #E8EAF0;
             font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
             font-size: 14px;
+        }
+
+        .stApp, [data-testid="stAppViewContainer"] {
+            background-color: transparent !important;
         }
 
         /* ── Sidebar ── */
