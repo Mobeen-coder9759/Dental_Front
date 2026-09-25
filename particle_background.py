@@ -10,13 +10,10 @@ def inject_particle_background():
             const parentWin = window.parent;
 
             // Prevent duplicates when Streamlit reruns
-            const existingCanvas = parentDoc.getElementById(
-                "antigravity-particle-canvas"
-            );
-
-            if (existingCanvas) {
+            if (parentWin.__antigravityBgInit) {
                 return;
             }
+            parentWin.__antigravityBgInit = true;
 
             // ------------------------------------------------------------
             // CREATE CANVAS
@@ -31,10 +28,10 @@ def inject_particle_background():
             canvas.style.width = "100vw";
             canvas.style.height = "100vh";
             canvas.style.pointerEvents = "none";
-            canvas.style.zIndex = "0";
-            canvas.style.opacity = "0.85";
+            canvas.style.zIndex = "-1";
+            canvas.style.opacity = "0.5";
 
-            parentDoc.body.appendChild(canvas);
+            parentDoc.body.insertBefore(canvas, parentDoc.body.firstChild);
 
             const ctx = canvas.getContext("2d");
 
@@ -43,23 +40,23 @@ def inject_particle_background():
             // ------------------------------------------------------------
 
             const CONFIG = {
-                particleCount: 260,
+                particleCount: 80,
 
                 // Particle appearance
-                minLength: 1.2,
-                maxLength: 3.5,
-                lineWidth: 1.1,
+                minLength: 1,
+                maxLength: 2.2,
+                lineWidth: 1,
 
                 // Cursor interaction
-                mouseRadius: 180,
-                mouseForce: 0.75,
+                mouseRadius: 130,
+                mouseForce: 0.35,
 
                 // Movement
-                springStrength: 0.018,
-                friction: 0.91,
+                springStrength: 0.025,
+                friction: 0.93,
 
                 // Very subtle floating motion
-                driftStrength: 0.015,
+                driftStrength: 0.006,
 
                 // Colors inspired by the reference
                 colors: [
@@ -134,7 +131,7 @@ def inject_particle_background():
                             )
                         ];
 
-                    this.alpha = 0.25 + Math.random() * 0.55;
+                    this.alpha = 0.12 + Math.random() * 0.25;
 
                     this.phase = Math.random() * Math.PI * 2;
                 }
