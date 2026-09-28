@@ -66,60 +66,53 @@ def inject_particle_background():
             parentDoc.body.insertBefore(canvas, parentDoc.body.firstChild);
 
             const ctx = canvas.getContext("2d", { alpha: true });
+
             const CONFIG = {
                 // The reference is intentionally dense. Mobile uses fewer particles.
-                desktopParticles: 1200,
-                mobileParticles: 360,
+                desktopParticles: 540,
+                mobileParticles: 280,
 
                 // Elliptical field geometry. The middle stays mostly empty so hero
                 // text/buttons remain readable, just like the reference.
-                innerRadius: 0.1,
-                outerRadius: 0.95,
-                ringParticleShare: 0.95,
-                radiusXViewport: 0.6,
-                radiusYViewport: 0.65,
-                maxRadiusX: 860,
-                maxRadiusY: 540,
+                innerRadius: 0.30,
+                outerRadius: 1.03,
+                ringParticleShare: 0.88,
+                radiusXViewport: 0.53,
+                radiusYViewport: 0.58,
+                maxRadiusX: 760,
+                maxRadiusY: 470,
                 centerYRatio: 0.50,
 
                 // Particle appearance.
-                minLength: 2.4,
-                maxLength: 5.6,
+                minLength: 1.6,
+                maxLength: 3.8,
                 minAlpha: 0.45,
                 maxAlpha: 0.95,
                 lineWidth: 1.6,
 
                 // Ambient flow.
-                driftX: 18,
-                driftY: 12,
-                flowStrength: 12,
-                flowSpeed: 0.00015,
+                driftX: 34,
+                driftY: 26,
+                flowStrength: 30,
+                flowSpeed: 0.00045,
 
                 // Cursor interaction.
-                mouseRadius: 240,     // size of the area around the cursor that grabs particles
-                mousePull: 0.8,      // how hard particles are pulled INTO the cursor
-                mouseSwirl: 0.45,     // how hard they are spun around the cursor (spiral speed)
-                mouseSwirlDir: 1,     // 1 = clockwise, -1 = counter-clockwise
-                mouseCore: 55,        // particles stop being pulled inside this radius so they orbit instead of clumping
-                mouseSpringRelax: 0.92, // 0-1: how much the "return home" spring is weakened near the cursor
-
-                // Spring physics.
-                springStrength: 0.040,
-                friction: 0.84,
-
-                // Cursor interaction.
-                mouseRadius: 260,       // cursor "catch" range: particles inside this get grabbed into the spiral
-                mouseRelease: 1.3,      // they let go once they are farther than mouseRadius * this
-                spiralRadius: 150,      // how big the finished spiral is (px)
+                mouseRadius: 170,       // cursor "catch" range: particles whose HOME spot is inside this join the spiral
+                mouseRelease: 1.25,     // they let go once their home is farther than mouseRadius * this
+                spiralIdleMs: 1200,     // if the cursor stops moving for this long, the spiral dissolves and particles return (0 = never)
+                spiralRadius: 115,      // how big the finished spiral is (px)
                 spiralCore: 18,         // empty hole at the very center (px)
                 spiralArms: 3,          // number of separate spiral lines
-                spiralTwist: 0.022,     // how curled the arms are (radians per px). 0 = straight rays, higher = tighter curl
-                spiralSpin: 0.0009,     // rotation speed of the whole spiral
+                spiralTwist: 0.017,     // how curled the arms are (radians per px). 0 = straight rays, higher = tighter curl
+                spiralSpin: 0.0006,     // rotation speed of the whole spiral
                 spiralDir: 1,           // 1 = one direction, -1 = the other
                 spiralArmWidth: 0.10,   // thickness of each arm (radians). Lower = thinner, sharper lines
                 spiralGrabSpeed: 0.07,  // how fast particles fly into / out of the spiral (0-1)
-                spiralSnap: 1.5,        // extra spring strength while in the spiral. Higher = crisper lines
+                spiralSnap: 1.0,        // extra spring strength while in the spiral. Higher = crisper lines
 
+                // Spring physics.
+                springStrength: 0.040,
+                friction: 0.865,
 
                 // Muted Google-Antigravity-ish palette.
                 colors: [
@@ -158,7 +151,8 @@ def inject_particle_background():
             const mouse = {
                 x: -10000,
                 y: -10000,
-                active: false
+                active: false,
+                lastMove: 0
             };
 
             const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -270,9 +264,12 @@ def inject_particle_background():
 
                     // Cursor catches nearby particles and arranges them onto
                     // separate spiral arms that rotate around the cursor.
-                    if (mouse.active) {
-                        const dx = this.x - mouse.x;
-                        const dy = this.y - mouse.y;
+                    const idle = CONFIG.spiralIdleMs > 0 && (time - mouse.lastMove) > CONFIG.spiralIdleMs;
+                    if (mouse.active && !idle) {
+                        // Measured from the particle's HOME spot (not where it currently is),
+                        // so once the cursor moves on, the particle lets go and flies home.
+                        const dx = this.homeX - mouse.x;
+                        const dy = this.homeY - mouse.y;
                         const d = Math.sqrt(dx * dx + dy * dy);
                         if (!this.captured && d < CONFIG.mouseRadius) this.captured = true;
                         else if (this.captured && d > CONFIG.mouseRadius * CONFIG.mouseRelease) this.captured = false;
@@ -368,6 +365,7 @@ def inject_particle_background():
                 mouse.x = event.clientX;
                 mouse.y = event.clientY;
                 mouse.active = true;
+                mouse.lastMove = parentWin.performance.now();
             }
 
             function onMouseLeave() {
@@ -379,6 +377,7 @@ def inject_particle_background():
                 mouse.x = event.touches[0].clientX;
                 mouse.y = event.touches[0].clientY;
                 mouse.active = true;
+                mouse.lastMove = parentWin.performance.now();
             }
 
             function onTouchEnd() {
