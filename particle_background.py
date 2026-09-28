@@ -69,12 +69,12 @@ def inject_particle_background():
 
             const CONFIG = {
                 // The reference is intentionally dense. Mobile uses fewer particles.
-                desktopParticles: 720,
+                desktopParticles: 1440,
                 mobileParticles: 360,
 
                 // Elliptical field geometry. The middle stays mostly empty so hero
                 // text/buttons remain readable, just like the reference.
-                innerRadius: 0.38,
+                innerRadius: 0.1,
                 outerRadius: 0.95,
                 ringParticleShare: 0.95,
                 radiusXViewport: 0.6,
@@ -84,22 +84,22 @@ def inject_particle_background():
                 centerYRatio: 0.50,
 
                 // Particle appearance.
-                minLength: 1.6,
-                maxLength: 3.8,
+                minLength: 2.4,
+                maxLength: 5.6,
                 minAlpha: 0.45,
                 maxAlpha: 0.95,
                 lineWidth: 1.6,
 
                 // Ambient flow.
-                driftX: 22,
-                driftY: 17,
-                flowStrength: 20,
-                flowSpeed: 0.00028,
+                driftX: 18,
+                driftY: 12,
+                flowStrength: 12,
+                flowSpeed: 0.00015,
 
                 // Cursor interaction.
                 mouseRadius: 240,     // size of the area around the cursor that grabs particles
-                mousePull: 0.4,      // how hard particles are pulled INTO the cursor
-                mouseSwirl: 0.6,     // how hard they are spun around the cursor (spiral speed)
+                mousePull: 0.8,      // how hard particles are pulled INTO the cursor
+                mouseSwirl: 0.45,     // how hard they are spun around the cursor (spiral speed)
                 mouseSwirlDir: 1,     // 1 = clockwise, -1 = counter-clockwise
                 mouseCore: 55,        // particles stop being pulled inside this radius so they orbit instead of clumping
                 mouseSpringRelax: 0.92, // 0-1: how much the "return home" spring is weakened near the cursor
