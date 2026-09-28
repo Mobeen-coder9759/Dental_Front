@@ -117,7 +117,6 @@ st.markdown(
             font-size: 11px;
             color: #3A3D4A;
         ">
-            Auto-refreshes every 30 s  ·  Data via Heroku PostgreSQL  ·  Vapi + n8n integration
         </p>
     </div>
     """,

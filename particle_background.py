@@ -66,10 +66,9 @@ def inject_particle_background():
             parentDoc.body.insertBefore(canvas, parentDoc.body.firstChild);
 
             const ctx = canvas.getContext("2d", { alpha: true });
-
             const CONFIG = {
                 // The reference is intentionally dense. Mobile uses fewer particles.
-                desktopParticles: 1440,
+                desktopParticles: 1200,
                 mobileParticles: 360,
 
                 // Elliptical field geometry. The middle stays mostly empty so hero
@@ -107,6 +106,20 @@ def inject_particle_background():
                 // Spring physics.
                 springStrength: 0.040,
                 friction: 0.84,
+
+                // Cursor interaction.
+                mouseRadius: 260,       // cursor "catch" range: particles inside this get grabbed into the spiral
+                mouseRelease: 1.3,      // they let go once they are farther than mouseRadius * this
+                spiralRadius: 150,      // how big the finished spiral is (px)
+                spiralCore: 18,         // empty hole at the very center (px)
+                spiralArms: 3,          // number of separate spiral lines
+                spiralTwist: 0.022,     // how curled the arms are (radians per px). 0 = straight rays, higher = tighter curl
+                spiralSpin: 0.0009,     // rotation speed of the whole spiral
+                spiralDir: 1,           // 1 = one direction, -1 = the other
+                spiralArmWidth: 0.10,   // thickness of each arm (radians). Lower = thinner, sharper lines
+                spiralGrabSpeed: 0.07,  // how fast particles fly into / out of the spiral (0-1)
+                spiralSnap: 1.5,        // extra spring strength while in the spiral. Higher = crisper lines
+
 
                 // Muted Google-Antigravity-ish palette.
                 colors: [
@@ -178,7 +191,7 @@ def inject_particle_background():
                 const outer2 = CONFIG.outerRadius * CONFIG.outerRadius;
                 const r = Math.sqrt(inner2 + u * (outer2 - inner2));
 
-                const wobble = rand(0.97, 1.03);
+                const wobble = rand(0.93, 1.08);
                 return {
                     x: centerX + Math.cos(theta) * radiusX * r * wobble,
                     y: centerY + Math.sin(theta) * radiusY * r / wobble,
@@ -224,6 +237,14 @@ def inject_particle_background():
                     this.alpha = rand(CONFIG.minAlpha, CONFIG.maxAlpha);
                     this.angle = anchor.theta + Math.PI / 2;
 
+                    // Spiral membership: which arm, where along it, and a tiny
+                    // sideways offset so each arm has some thickness.
+                    this.arm = Math.floor(Math.random() * CONFIG.spiralArms);
+                    this.armT = Math.random();
+                    this.armJitter = rand(-1, 1) * CONFIG.spiralArmWidth;
+                    this.grab = 0;
+                    this.captured = false;
+
                     // Spread palette colors through the field, then perturb the
                     // index so neighboring particles don't look striped.
                     const paletteOffset = Math.floor(Math.random() * CONFIG.colors.length);
@@ -247,40 +268,37 @@ def inject_particle_background():
                     let targetX = this.homeX + driftX + waveX;
                     let targetY = this.homeY + driftY + waveY;
 
-                    // Cursor pulls particles in and spins them into a spiral.
-                    let springScale = 1;
+                    // Cursor catches nearby particles and arranges them onto
+                    // separate spiral arms that rotate around the cursor.
                     if (mouse.active) {
-                        const mx = mouse.x - this.x;
-                        const my = mouse.y - this.y;
-                        const d2 = mx * mx + my * my;
-                        const R = CONFIG.mouseRadius;
-
-                        if (d2 > 0.001 && d2 < R * R) {
-                            const d = Math.sqrt(d2);
-                            const influence = 1 - d / R;
-                            const eased = influence * influence * (3 - 2 * influence);
-
-                            // unit vector toward the cursor + tangent (perpendicular) vector
-                            const nx = mx / d;
-                            const ny = my / d;
-                            const tx = -ny * CONFIG.mouseSwirlDir;
-                            const ty = nx * CONFIG.mouseSwirlDir;
-
-                            // fade the inward pull near the center so they orbit instead of collapsing
-                            const coreFade = Math.min(1, d / CONFIG.mouseCore);
-                            const pull = CONFIG.mousePull * eased * coreFade;
-                            const swirl = CONFIG.mouseSwirl * eased;
-
-                            this.vx += nx * pull + tx * swirl;
-                            this.vy += ny * pull + ty * swirl;
-
-                            // weaken the return-home spring so they can actually spiral
-                            springScale = 1 - CONFIG.mouseSpringRelax * eased;
-                        }
+                        const dx = this.x - mouse.x;
+                        const dy = this.y - mouse.y;
+                        const d = Math.sqrt(dx * dx + dy * dy);
+                        if (!this.captured && d < CONFIG.mouseRadius) this.captured = true;
+                        else if (this.captured && d > CONFIG.mouseRadius * CONFIG.mouseRelease) this.captured = false;
+                    } else {
+                        this.captured = false;
                     }
 
-                    this.vx += (targetX - this.x) * CONFIG.springStrength * springScale;
-                    this.vy += (targetY - this.y) * CONFIG.springStrength * springScale;
+                    this.grab += ((this.captured ? 1 : 0) - this.grab) * CONFIG.spiralGrabSpeed;
+
+                    if (this.grab > 0.001) {
+                        const r = CONFIG.spiralCore + (CONFIG.spiralRadius - CONFIG.spiralCore) * this.armT;
+                        const armBase = (this.arm / CONFIG.spiralArms) * Math.PI * 2;
+                        const spin = time * CONFIG.spiralSpin;
+                        const ang = armBase + CONFIG.spiralDir * (spin - r * CONFIG.spiralTwist) + this.armJitter;
+
+                        const spiralX = mouse.x + Math.cos(ang) * r;
+                        const spiralY = mouse.y + Math.sin(ang) * r;
+
+                        const g = this.grab * this.grab * (3 - 2 * this.grab);
+                        targetX += (spiralX - targetX) * g;
+                        targetY += (spiralY - targetY) * g;
+                    }
+
+                    const k = CONFIG.springStrength * (1 + this.grab * CONFIG.spiralSnap);
+                    this.vx += (targetX - this.x) * k;
+                    this.vy += (targetY - this.y) * k;
                     this.vx *= CONFIG.friction;
                     this.vy *= CONFIG.friction;
                     this.x += this.vx;
