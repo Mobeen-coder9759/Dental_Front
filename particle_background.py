@@ -69,18 +69,18 @@ def inject_particle_background():
 
             const CONFIG = {
                 // The reference is intentionally dense. Mobile uses fewer particles.
-                desktopParticles: 540,
-                mobileParticles: 280,
+                desktopParticles: 720,
+                mobileParticles: 360,
 
                 // Elliptical field geometry. The middle stays mostly empty so hero
                 // text/buttons remain readable, just like the reference.
-                innerRadius: 0.30,
-                outerRadius: 1.03,
-                ringParticleShare: 0.88,
-                radiusXViewport: 0.53,
-                radiusYViewport: 0.58,
-                maxRadiusX: 760,
-                maxRadiusY: 470,
+                innerRadius: 0.38,
+                outerRadius: 0.95,
+                ringParticleShare: 0.95,
+                radiusXViewport: 0.6,
+                radiusYViewport: 0.65,
+                maxRadiusX: 860,
+                maxRadiusY: 540,
                 centerYRatio: 0.50,
 
                 // Particle appearance.
@@ -91,22 +91,22 @@ def inject_particle_background():
                 lineWidth: 1.6,
 
                 // Ambient flow.
-                driftX: 34,
-                driftY: 26,
-                flowStrength: 30,
-                flowSpeed: 0.00045,
+                driftX: 22,
+                driftY: 17,
+                flowStrength: 20,
+                flowSpeed: 0.00028,
 
                 // Cursor interaction.
-                mouseRadius: 220,     // size of the area around the cursor that grabs particles
-                mousePull: 0.55,      // how hard particles are pulled INTO the cursor
-                mouseSwirl: 0.95,     // how hard they are spun around the cursor (spiral speed)
+                mouseRadius: 240,     // size of the area around the cursor that grabs particles
+                mousePull: 0.4,      // how hard particles are pulled INTO the cursor
+                mouseSwirl: 0.6,     // how hard they are spun around the cursor (spiral speed)
                 mouseSwirlDir: 1,     // 1 = clockwise, -1 = counter-clockwise
-                mouseCore: 45,        // particles stop being pulled inside this radius so they orbit instead of clumping
-                mouseSpringRelax: 0.85, // 0-1: how much the "return home" spring is weakened near the cursor
+                mouseCore: 55,        // particles stop being pulled inside this radius so they orbit instead of clumping
+                mouseSpringRelax: 0.92, // 0-1: how much the "return home" spring is weakened near the cursor
 
                 // Spring physics.
                 springStrength: 0.040,
-                friction: 0.865,
+                friction: 0.84,
 
                 // Muted Google-Antigravity-ish palette.
                 colors: [
@@ -178,7 +178,7 @@ def inject_particle_background():
                 const outer2 = CONFIG.outerRadius * CONFIG.outerRadius;
                 const r = Math.sqrt(inner2 + u * (outer2 - inner2));
 
-                const wobble = rand(0.93, 1.08);
+                const wobble = rand(0.97, 1.03);
                 return {
                     x: centerX + Math.cos(theta) * radiusX * r * wobble,
                     y: centerY + Math.sin(theta) * radiusY * r / wobble,
