@@ -65,8 +65,6 @@ st.markdown(
             line-height: 1.6;
             margin-bottom: 32px;
         ">
-            Connected to your Heroku PostgreSQL database.<br>
-            Select a section from the sidebar to get started.
         </p>
         <div style="
             display: flex;

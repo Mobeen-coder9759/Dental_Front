@@ -91,14 +91,18 @@ def inject_particle_background():
                 lineWidth: 1.6,
 
                 // Ambient flow.
-                driftX: 13,
-                driftY: 9,
-                flowStrength: 12,
-                flowSpeed: 0.00022,
+                driftX: 34,
+                driftY: 26,
+                flowStrength: 30,
+                flowSpeed: 0.00045,
 
                 // Cursor interaction.
-                mouseRadius: 175,
-                mousePush: 92,
+                mouseRadius: 220,     // size of the area around the cursor that grabs particles
+                mousePull: 0.55,      // how hard particles are pulled INTO the cursor
+                mouseSwirl: 0.95,     // how hard they are spun around the cursor (spiral speed)
+                mouseSwirlDir: 1,     // 1 = clockwise, -1 = counter-clockwise
+                mouseCore: 45,        // particles stop being pulled inside this radius so they orbit instead of clumping
+                mouseSpringRelax: 0.85, // 0-1: how much the "return home" spring is weakened near the cursor
 
                 // Spring physics.
                 springStrength: 0.040,
@@ -243,25 +247,40 @@ def inject_particle_background():
                     let targetX = this.homeX + driftX + waveX;
                     let targetY = this.homeY + driftY + waveY;
 
-                    // Cursor creates a smooth local "anti-gravity" pocket.
+                    // Cursor pulls particles in and spins them into a spiral.
+                    let springScale = 1;
                     if (mouse.active) {
-                        const dx = targetX - mouse.x;
-                        const dy = targetY - mouse.y;
-                        const d2 = dx * dx + dy * dy;
-                        const r2 = CONFIG.mouseRadius * CONFIG.mouseRadius;
+                        const mx = mouse.x - this.x;
+                        const my = mouse.y - this.y;
+                        const d2 = mx * mx + my * my;
+                        const R = CONFIG.mouseRadius;
 
-                        if (d2 > 0.001 && d2 < r2) {
+                        if (d2 > 0.001 && d2 < R * R) {
                             const d = Math.sqrt(d2);
-                            const influence = 1 - d / CONFIG.mouseRadius;
+                            const influence = 1 - d / R;
                             const eased = influence * influence * (3 - 2 * influence);
-                            const push = CONFIG.mousePush * eased;
-                            targetX += (dx / d) * push;
-                            targetY += (dy / d) * push;
+
+                            // unit vector toward the cursor + tangent (perpendicular) vector
+                            const nx = mx / d;
+                            const ny = my / d;
+                            const tx = -ny * CONFIG.mouseSwirlDir;
+                            const ty = nx * CONFIG.mouseSwirlDir;
+
+                            // fade the inward pull near the center so they orbit instead of collapsing
+                            const coreFade = Math.min(1, d / CONFIG.mouseCore);
+                            const pull = CONFIG.mousePull * eased * coreFade;
+                            const swirl = CONFIG.mouseSwirl * eased;
+
+                            this.vx += nx * pull + tx * swirl;
+                            this.vy += ny * pull + ty * swirl;
+
+                            // weaken the return-home spring so they can actually spiral
+                            springScale = 1 - CONFIG.mouseSpringRelax * eased;
                         }
                     }
 
-                    this.vx += (targetX - this.x) * CONFIG.springStrength;
-                    this.vy += (targetY - this.y) * CONFIG.springStrength;
+                    this.vx += (targetX - this.x) * CONFIG.springStrength * springScale;
+                    this.vy += (targetY - this.y) * CONFIG.springStrength * springScale;
                     this.vx *= CONFIG.friction;
                     this.vy *= CONFIG.friction;
                     this.x += this.vx;
