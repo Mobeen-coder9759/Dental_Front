@@ -1,16 +1,10 @@
 import html as html_lib
-
+import re
 import pandas as pd
 import streamlit as st
 
 
 # ── Typography / visual design tokens ──────────────────────────────────────
-# Enterprise dark CRM aesthetic:
-# Base: #0F1117 (near-black), Surface: #1A1D27 (panel), Border: #2A2D3A
-# Text primary: #E8EAF0, Text muted: #6B7080
-# Accent: #4A7CFF (crisp blue — functional, not decorative)
-# Status colours: green #2ECC71, amber #F5A623, red #E05252, grey #6B7080
-
 BADGE_STYLES = {
     "new":         ("background:#1A3A5C;color:#4A9FFF;", "NEW"),
     "rescheduled": ("background:#3A2E10;color:#F5A623;", "RESCHEDULED"),
@@ -48,6 +42,54 @@ TABLE_STYLE = """<table style="
     color:#C8CDD8;
     background:#1A1D27;
 " """
+
+
+# ── Privacy & PHI/PII Masking Utilities ────────────────────────────────────
+def mask_email(val) -> str:
+    """Mask email address for privacy compliance: e.g. j***n@example.com"""
+    if pd.isnull(val) or not str(val).strip():
+        return "—"
+    s = str(val).strip()
+    if "@" not in s:
+        return s[:2] + "***"
+    name, domain = s.split("@", 1)
+    if len(name) <= 2:
+        masked_name = name[0] + "*"
+    else:
+        masked_name = name[0] + "*" * (len(name) - 2) + name[-1]
+    return f"{masked_name}@{domain}"
+
+
+def mask_dob(val) -> str:
+    """Mask date of birth for HIPAA compliance: e.g. ****-**-15"""
+    if pd.isnull(val) or not str(val).strip():
+        return "—"
+    s = str(val).strip()
+    # If standard YYYY-MM-DD
+    parts = s.split("-")
+    if len(parts) == 3:
+        return f"****-**-{parts[2]}"
+    return "**/**/****"
+
+
+def mask_name(val) -> str:
+    """Mask full name: e.g. John Doe -> John D."""
+    if pd.isnull(val) or not str(val).strip():
+        return "—"
+    parts = str(val).strip().split()
+    if len(parts) == 1:
+        return parts[0][0] + "***"
+    return f"{parts[0]} {parts[-1][0]}."
+
+
+def mask_phone(val) -> str:
+    """Mask phone number: e.g. ***-***-1234"""
+    if pd.isnull(val) or not str(val).strip():
+        return "—"
+    digits = re.sub(r"\D", "", str(val))
+    if len(digits) >= 4:
+        return f"***-***-{digits[-4:]}"
+    return "***-***-****"
 
 
 def inject_global_css():
@@ -229,9 +271,7 @@ def inject_global_css():
 
 
 def kpi_strip(cards: list[dict]):
-    """
-    cards = [{"label": "...", "value": 0, "sub": "..."}, ...]
-    """
+    """cards = [{"label": "...", "value": 0, "sub": "..."}, ...]"""
     cols = st.columns(len(cards))
     for col, card in zip(cols, cards):
         with col:
@@ -258,7 +298,7 @@ def page_header(title: str, subtitle: str = ""):
         )
     with col2:
         st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-        if st.button("↻  Refresh", key=f"refresh_{title}"):
+        if st.button("↻ Refresh", key=f"refresh_{title}"):
             st.cache_data.clear()
             st.rerun()
     st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
@@ -335,19 +375,33 @@ def empty_state(msg: str = "No records match the current filters."):
     )
 
 
-def render_html_table(display: pd.DataFrame, html_cols: list[str] | None = None):
+def render_html_table(
+    display: pd.DataFrame,
+    html_cols: list[str] | None = None,
+    mask_phi: bool = False,
+):
     """
     Render a DataFrame as a styled HTML table.
 
-    Only columns listed in `html_cols` (already-built HTML, e.g. badges/pills
-    from this module) are left unescaped. Every other cell — which may
-    contain untrusted data pulled from the database — is HTML-escaped first,
-    preventing stored-XSS via names/emails/reasons etc.
+    Guard Rails:
+    1. Escapes all untrusted raw cell content to prevent XSS.
+    2. Supports `mask_phi` to automatically mask sensitive PII/PHI columns (DOB, Email, Phone, Name).
     """
     html_cols = set(html_cols or [])
     safe = display.copy()
 
     for col in safe.columns:
+        if mask_phi:
+            col_lower = col.lower()
+            if "email" in col_lower:
+                safe[col] = safe[col].apply(mask_email)
+            elif "dob" in col_lower:
+                safe[col] = safe[col].apply(mask_dob)
+            elif "name" in col_lower:
+                safe[col] = safe[col].apply(mask_name)
+            elif "phone" in col_lower:
+                safe[col] = safe[col].apply(mask_phone)
+
         if col not in html_cols:
             safe[col] = safe[col].apply(
                 lambda v: html_lib.escape(str(v)) if not pd.isnull(v) else "—"

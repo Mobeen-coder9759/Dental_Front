@@ -3,8 +3,12 @@ import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 
 import sys, os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
 
+
+from auth import require_auth, render_user_sidebar
 from database import fetch_hiring, update_applicant_status
 from particle_background import inject_particle_background
 from ui import (
@@ -12,7 +16,6 @@ from ui import (
     page_header,
     kpi_strip,
     fmt_ts,
-    fmt_null,
     hiring_badge,
     table_header,
     empty_state,
@@ -26,14 +29,20 @@ st.set_page_config(
 )
 inject_global_css()
 inject_particle_background()
+
+# Guard Rail: Enforce Authentication & Role Authorization (Admin or HR)
+require_auth(allowed_roles=["admin", "hr"])
+
 st_autorefresh(interval=30_000, key="hiring_refresher")
 
 # ── Sidebar filters ────────────────────────────────────────────────────────
 with st.sidebar:
+    render_user_sidebar()
     st.markdown("### Filters")
     st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
 
-    search = st.text_input("Search applicant", placeholder="Name or email…")
+    # Guard Rail: Enforce character length caps
+    search = st.text_input("Search applicant", placeholder="Name or email…", max_chars=100)
     position = st.selectbox(
         "Position",
         ["All", "Dental Assistant", "Receptionist", "Hygienist", "Office Manager", "Dentist"],
@@ -48,6 +57,7 @@ df_raw = fetch_hiring(
     search=search if search else None,
     position=position if position != "All" else None,
     status=status if status != "All" else None,
+    limit=250,
 )
 
 # ── Page header ────────────────────────────────────────────────────────────
@@ -88,7 +98,7 @@ else:
 
     render_html_table(display, html_cols=["application_status"])
 
-    # ── Inline status updater ──────────────────────────────────────────────
+    # ── Inline status updater with Guard Rails ──────────────────────────────────
     st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
     st.markdown(
         "<p style='font-size:11px;color:#6B7080;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;'>Update Applicant Status</p>",
@@ -97,17 +107,29 @@ else:
 
     with st.expander("Select applicant to update", expanded=False):
         emails = df_raw["applicant_email"].dropna().unique().tolist()
-        target_email = st.selectbox("Applicant email", emails, key="update_email")
+        if not emails:
+            st.warning("No valid candidate email addresses found in the current selection.")
+        else:
+            target_email = st.selectbox("Applicant email", emails, key="update_email")
 
-        new_status = st.selectbox(
-            "New status",
-            ["Pending", "Shortlisted", "Rejected", "Hired"],
-            key="new_status",
-        )
+            new_status = st.selectbox(
+                "New status",
+                ["Pending", "Shortlisted", "Rejected", "Hired"],
+                key="new_status",
+            )
 
-        if st.button("Apply update", key="apply_update"):
-            ok = update_applicant_status(target_email, new_status.lower())
-            if ok:
-                st.success(f"Status updated → {new_status}")
-                st.cache_data.clear()
-                st.rerun()
+            # Guard Rail: Mandatory user action confirmation
+            confirm = st.checkbox(
+                f"I confirm setting status of {target_email} to '{new_status}'",
+                key="confirm_status_change",
+            )
+
+            if st.button("Apply update", key="apply_update"):
+                if not confirm:
+                    st.warning("⚠️ Please check the confirmation box before applying the status update.")
+                else:
+                    ok = update_applicant_status(target_email, new_status.lower())
+                    if ok:
+                        st.success(f"Status updated → {new_status} for {target_email}")
+                        st.cache_data.clear()
+                        st.rerun()

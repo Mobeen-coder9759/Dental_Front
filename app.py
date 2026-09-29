@@ -1,10 +1,11 @@
 import streamlit as st
+from auth import require_auth, render_user_sidebar
 from ui import inject_global_css
 from particle_background import inject_particle_background
 from streamlit_autorefresh import st_autorefresh
 
 st.set_page_config(
-    page_title="Dental CRM",
+    page_title="Dental CRM Portal",
     page_icon="🦷",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -13,14 +14,17 @@ st.set_page_config(
 inject_global_css()
 inject_particle_background()
 
-# Non-blocking auto-refresh (every 30s, matches the cache TTL on database.py)
+# Guard Rail 1: Require authentication before displaying any page content
+require_auth()
+
+# Non-blocking auto-refresh (every 30s)
 st_autorefresh(interval=30_000, key="landing_refresher")
 
-# ── Sidebar branding ───────────────────────────────────────────────────────
+# ── Sidebar branding & User profile ────────────────────────────────────────
 with st.sidebar:
     st.markdown(
         """
-        <div style="padding:4px 0 20px 0;">
+        <div style="padding:4px 0 16px 0;">
             <div style="font-size:15px;font-weight:700;color:#E8EAF0;letter-spacing:-0.01em;">
                 🦷 Dental CRM
             </div>
@@ -31,6 +35,7 @@ with st.sidebar:
         """,
         unsafe_allow_html=True,
     )
+    render_user_sidebar()
     st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
     st.markdown(
         """
@@ -42,82 +47,83 @@ with st.sidebar:
     )
 
 # ── Landing page ───────────────────────────────────────────────────────────
+user = st.session_state.get("user", {})
+user_role = user.get("role", "staff").upper()
+
 st.markdown(
-    """
+    f"""
     <div style="
-        max-width: 560px;
-        margin: 80px auto 0;
+        max-width: 620px;
+        margin: 40px auto 0;
         text-align: center;
     ">
-        <div style="
-            font-size: 40px;
-            margin-bottom: 16px;
-        ">🦷</div>
+        <div style="font-size: 44px; margin-bottom: 12px;">🦷</div>
         <h1 style="
-            font-size: 22px !important;
+            font-size: 24px !important;
             font-weight: 700 !important;
             color: #E8EAF0 !important;
-            margin-bottom: 10px;
-        ">Dental Practice CRM</h1>
+            margin-bottom: 8px;
+        ">Welcome, {user.get('name', 'User')}</h1>
         <p style="
             color: #6B7080;
             font-size: 13px;
-            line-height: 1.6;
-            margin-bottom: 32px;
+            margin-bottom: 28px;
         ">
+            Authenticated Access Level: <strong style="color:#7B8CDE;">{user_role}</strong>
         </p>
+
         <div style="
             display: flex;
-            gap: 12px;
+            gap: 14px;
             justify-content: center;
             flex-wrap: wrap;
         ">
             <div style="
                 background:#1A1D27;
                 border:1px solid #2A2D3A;
-                border-radius:6px;
-                padding:14px 24px;
+                border-radius:8px;
+                padding:18px 22px;
                 font-size:12px;
                 color:#9AA0B5;
-                min-width:140px;
+                flex:1;
+                min-width:160px;
+                text-align:left;
             ">
-                <div style="font-size:18px;margin-bottom:6px;">📅</div>
-                <div style="font-weight:600;color:#E8EAF0;margin-bottom:3px;">Appointments</div>
-                <div style="color:#6B7080;font-size:11px;">Schedule & bookings</div>
+                <div style="font-size:22px;margin-bottom:8px;">📅</div>
+                <div style="font-weight:600;color:#E8EAF0;font-size:14px;margin-bottom:4px;">Appointments</div>
+                <div style="color:#6B7080;font-size:11px;line-height:1.4;">Schedule & bookings overview for clinic patients.</div>
             </div>
             <div style="
                 background:#1A1D27;
                 border:1px solid #2A2D3A;
-                border-radius:6px;
-                padding:14px 24px;
+                border-radius:8px;
+                padding:18px 22px;
                 font-size:12px;
                 color:#9AA0B5;
-                min-width:140px;
+                flex:1;
+                min-width:160px;
+                text-align:left;
             ">
-                <div style="font-size:18px;margin-bottom:6px;">👤</div>
-                <div style="font-weight:600;color:#E8EAF0;margin-bottom:3px;">Hiring</div>
-                <div style="color:#6B7080;font-size:11px;">Applicant pipeline</div>
+                <div style="font-size:22px;margin-bottom:8px;">👤</div>
+                <div style="font-weight:600;color:#E8EAF0;font-size:14px;margin-bottom:4px;">Hiring</div>
+                <div style="color:#6B7080;font-size:11px;line-height:1.4;">Applicant pipeline & status candidate manager.</div>
             </div>
             <div style="
                 background:#1A1D27;
                 border:1px solid #2A2D3A;
-                border-radius:6px;
-                padding:14px 24px;
+                border-radius:8px;
+                padding:18px 22px;
                 font-size:12px;
                 color:#9AA0B5;
-                min-width:140px;
+                flex:1;
+                min-width:160px;
+                text-align:left;
             ">
-                <div style="font-size:18px;margin-bottom:6px;">📊</div>
-                <div style="font-weight:600;color:#E8EAF0;margin-bottom:3px;">Analytics</div>
-                <div style="color:#6B7080;font-size:11px;">Charts & audit logs</div>
+                <div style="font-size:22px;margin-bottom:8px;">📊</div>
+                <div style="font-weight:600;color:#E8EAF0;font-size:14px;margin-bottom:4px;">Analytics</div>
+                <div style="color:#6B7080;font-size:11px;line-height:1.4;">Practice call volume & cancellation audit log.</div>
             </div>
         </div>
-        <p style="
-            margin-top: 40px;
-            font-size: 11px;
-            color: #3A3D4A;
-        ">
-        </p>
     </div>
     """,
     unsafe_allow_html=True,

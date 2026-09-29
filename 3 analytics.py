@@ -3,15 +3,18 @@ import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 
 import sys, os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
 
+
+from auth import require_auth, render_user_sidebar
 from database import fetch_analytics
 from particle_background import inject_particle_background
 from ui import (
     inject_global_css,
     page_header,
     fmt_ts,
-    fmt_null,
     booking_badge,
     code_pill,
     table_header,
@@ -26,15 +29,22 @@ st.set_page_config(
 )
 inject_global_css()
 inject_particle_background()
+
+# Guard Rail: Enforce Authentication & Admin Role Authorization Only
+require_auth(allowed_roles=["admin"])
+
 st_autorefresh(interval=30_000, key="analytics_refresher")
 
+with st.sidebar:
+    render_user_sidebar()
+
 page_header(
-    "Practice Analytics & Audit",
-    subtitle="Aggregated appointment data  ·  Auto-refreshes every 30 s",
+    "Practice Analytics & Audit Log",
+    subtitle="Aggregated appointment data & audit traceability · Auto-refreshes every 30 s",
 )
 
 # ── Fetch ──────────────────────────────────────────────────────────────────
-data = fetch_analytics()
+data = fetch_analytics(limit=250)
 df_reason = data.get("by_reason", pd.DataFrame())
 df_volume = data.get("call_volume", pd.DataFrame())
 df_audit  = data.get("audit_log", pd.DataFrame())
@@ -109,7 +119,7 @@ st.markdown(
 )
 
 if df_audit.empty:
-    empty_state("No reschedule or cancellation events found.")
+    empty_state("No reschedule or cancellation audit events found.")
 else:
     display = df_audit.copy()
 
