@@ -3,6 +3,8 @@ import re
 import pandas as pd
 import streamlit as st
 
+from particle_background import inject_particle_background
+
 
 # ── Typography / visual design tokens ──────────────────────────────────────
 BADGE_STYLES = {
@@ -268,6 +270,10 @@ def inject_global_css():
         """,
         unsafe_allow_html=True,
     )
+
+    # Animated particle field behind the entire app (every page calls this
+    # function, so every page gets the background).
+    inject_particle_background()
 
 
 def kpi_strip(cards: list[dict]):

@@ -1,7 +1,6 @@
 import streamlit as st
 from auth import require_auth, render_user_sidebar
 from ui import inject_global_css
-from particle_background import inject_particle_background
 from streamlit_autorefresh import st_autorefresh
 
 st.set_page_config(
@@ -11,8 +10,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-inject_global_css()
-inject_particle_background()
+inject_global_css()  # also injects the particle background
 
 # Guard Rail 1: Require authentication before displaying any page content
 require_auth()
